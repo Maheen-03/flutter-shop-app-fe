@@ -21,7 +21,8 @@ class _PosScreenState extends State<PosScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse("http://localhost:3000/products/barcode/$barcode"),
+        Uri.parse(
+            "https://flutter-shop-app-be.vercel.app/products/barcode/$barcode"),
       );
 
       if (response.statusCode == 200) {

@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'add_product_screen.dart';
 
+const String baseUrl = "https://flutter-shop-app-be.vercel.app";
+
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
 
@@ -24,8 +26,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   // ================= FETCH CATEGORIES =================
   Future<void> fetchCategories() async {
-    final response =
-        await http.get(Uri.parse("http://localhost:3000/categories"));
+    final response = await http.get(Uri.parse("$baseUrl/categories"));
 
     if (response.statusCode == 200) {
       setState(() {
@@ -36,9 +37,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   // ================= FETCH PRODUCTS BY CATEGORY =================
   Future<void> fetchProducts(String categoryId) async {
-    final response = await http.get(
-      Uri.parse("http://localhost:3000/products-by-category/$categoryId"),
-    );
+    final response =
+        await http.get(Uri.parse("$baseUrl/products-by-category/$categoryId"));
 
     if (response.statusCode == 200) {
       setState(() {

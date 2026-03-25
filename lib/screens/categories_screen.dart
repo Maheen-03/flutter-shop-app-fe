@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+/// ✅ BASE URL CONFIGURATION
+const bool useLocal = false; // true = local, false = Vercel
+const String baseUrl = useLocal
+    ? "http://127.0.0.1:3000"
+    : "https://flutter-shop-app-be.vercel.app";
+
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
 
@@ -15,51 +21,70 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   List categories = [];
   bool isLoading = true;
 
-  final String baseUrl = "http://localhost:3000";
+  @override
+  void initState() {
+    super.initState();
+    fetchCategories();
+  }
 
-  // Fetch categories from backend
+  // ================= FETCH CATEGORIES =================
   Future<void> fetchCategories() async {
-    final url = Uri.parse("$baseUrl/categories");
+    setState(() {
+      isLoading = true;
+    });
 
-    final response = await http.get(url);
+    try {
+      final url = Uri.parse("$baseUrl/categories");
+      final response = await http.get(url);
 
-    if (response.statusCode == 200) {
+      if (response.statusCode == 200) {
+        setState(() {
+          categories = jsonDecode(response.body);
+          isLoading = false;
+        });
+      } else {
+        showMessage("Failed to load categories (${response.statusCode})");
+        setState(() {
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      showMessage("Error fetching categories: $e");
       setState(() {
-        categories = jsonDecode(response.body);
         isLoading = false;
       });
-    } else {
-      print("Failed to load categories");
     }
   }
 
-  // Add category
+  // ================= ADD CATEGORY =================
   Future<void> addCategory() async {
-    final url = Uri.parse("$baseUrl/categories/add-category");
+    if (categoryNameController.text.trim().isEmpty) {
+      showMessage("Please enter category name");
+      return;
+    }
 
-    final response = await http.post(
-      url,
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"name": categoryNameController.text}),
-    );
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      categoryNameController.clear();
-      Navigator.pop(context);
-
-      fetchCategories();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Category Added")),
+    try {
+      final url = Uri.parse("$baseUrl/categories/add-category");
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"name": categoryNameController.text.trim()}),
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to add category")),
-      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        categoryNameController.clear();
+        Navigator.pop(context);
+        fetchCategories();
+        showMessage("Category Added Successfully");
+      } else {
+        showMessage("Failed to add category (${response.statusCode})");
+      }
+    } catch (e) {
+      showMessage("Error adding category: $e");
     }
   }
 
-  // Dialog for adding category
+  // ================= DIALOG =================
   void showAddCategoryDialog() {
     showDialog(
       context: context,
@@ -79,19 +104,22 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           ),
           ElevatedButton(
             onPressed: addCategory,
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
             child: const Text("Add"),
-          )
+          ),
         ],
       ),
     );
   }
 
-  @override
-  void initState() {
-    super.initState();
-    fetchCategories();
+  // ================= HELPER =================
+  void showMessage(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg)),
+    );
   }
 
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -101,23 +129,25 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              itemCount: categories.length,
-              itemBuilder: (context, index) {
-                final category = categories[index];
+          : categories.isEmpty
+              ? const Center(child: Text("No categories available"))
+              : ListView.builder(
+                  itemCount: categories.length,
+                  itemBuilder: (context, index) {
+                    final category = categories[index];
 
-                return Card(
-                  margin: const EdgeInsets.all(10),
-                  child: ListTile(
-                    title: Text(category["name"] ?? ""),
-                    trailing: const Icon(
-                      Icons.category,
-                      color: Colors.teal,
-                    ),
-                  ),
-                );
-              },
-            ),
+                    return Card(
+                      margin: const EdgeInsets.all(10),
+                      child: ListTile(
+                        title: Text(category["name"] ?? ""),
+                        trailing: const Icon(
+                          Icons.category,
+                          color: Colors.teal,
+                        ),
+                      ),
+                    );
+                  },
+                ),
       floatingActionButton: FloatingActionButton(
         onPressed: showAddCategoryDialog,
         backgroundColor: Colors.teal,

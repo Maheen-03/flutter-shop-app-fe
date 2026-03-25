@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'menu_screen.dart';
+import 'add_product_screen.dart'; // POS screen
 import 'products_screen.dart';
 import 'categories_screen.dart';
 import 'inventory_screen.dart';
@@ -26,12 +26,12 @@ class DashboardScreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.teal,
               shape: BoxShape.circle,
-              boxShadow: [
+              boxShadow: const [
                 BoxShadow(
                   color: Colors.black26,
                   blurRadius: 6,
                   offset: Offset(2, 2),
-                )
+                ),
               ],
             ),
             child: Icon(icon, color: Colors.white, size: 32),
@@ -67,15 +67,35 @@ class DashboardScreen extends StatelessWidget {
           padding: const EdgeInsets.all(40),
           children: [
             dashboardButton(
-                context, "POS", Icons.point_of_sale, const PosScreen()),
+              context,
+              "POS",
+              Icons.point_of_sale,
+              const AddProductScreen(),
+            ),
             dashboardButton(
-                context, "Products", Icons.inventory, const ProductsScreen()),
-            dashboardButton(context, "Categories", Icons.category,
-                const CategoriesScreen()),
+              context,
+              "Products",
+              Icons.inventory,
+              const ProductsScreen(),
+            ),
             dashboardButton(
-                context, "Inventory", Icons.warehouse, const InventoryScreen()),
-            dashboardButton(context, "Sales", Icons.receipt_long,
-                const SalesHistoryScreen()),
+              context,
+              "Categories",
+              Icons.category,
+              const CategoriesScreen(),
+            ),
+            dashboardButton(
+              context,
+              "Inventory",
+              Icons.warehouse,
+              const InventoryScreen(),
+            ),
+            dashboardButton(
+              context,
+              "Sales",
+              Icons.receipt_long,
+              const SalesHistoryScreen(),
+            ),
           ],
         ),
       ),
