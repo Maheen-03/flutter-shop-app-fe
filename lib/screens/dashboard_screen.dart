@@ -4,6 +4,7 @@ import 'products_screen.dart';
 import 'categories_screen.dart';
 import 'inventory_screen.dart';
 import 'sales_history_screen.dart';
+import 'menu_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -70,7 +71,7 @@ class DashboardScreen extends StatelessWidget {
               context,
               "POS",
               Icons.point_of_sale,
-              const AddProductScreen(),
+              const PosScreen(),
             ),
             dashboardButton(
               context,

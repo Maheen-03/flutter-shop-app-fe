@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'receipt_screen.dart';
 
 class PosScreen extends StatefulWidget {
   const PosScreen({super.key});
@@ -15,31 +16,32 @@ class _PosScreenState extends State<PosScreen> {
   List<Map<String, dynamic>> cartItems = [];
   double total = 0;
 
-  // ================= ADD ITEM FROM BACKEND =================
+  final String baseUrl = "https://flutter-shop-app-be.vercel.app";
+
+  // ================= ADD ITEM =================
   Future<void> addItem(String barcode) async {
     if (barcode.isEmpty) return;
 
     try {
       final response = await http.get(
-        Uri.parse(
-            "https://flutter-shop-app-be.vercel.app/products/barcode/$barcode"),
+        Uri.parse("$baseUrl/products/barcode/$barcode"),
       );
 
       if (response.statusCode == 200) {
         final product = jsonDecode(response.body);
 
         setState(() {
-          int index =
-              cartItems.indexWhere((item) => item['id'] == product['id']);
+          int index = cartItems
+              .indexWhere((item) => item['product_id'] == product['id']);
 
           if (index != -1) {
             cartItems[index]['quantity'] += 1;
           } else {
             cartItems.add({
-              'id': product['id'],
-              'name': product['product_name'],
-              'price': product['sale_price'],
-              'quantity': 1,
+              "product_id": product["id"],
+              "name": product["product_name"],
+              "price": product["sale_price"],
+              "quantity": 1,
             });
           }
 
@@ -73,8 +75,6 @@ class _PosScreenState extends State<PosScreen> {
 
   // ================= QUANTITY =================
   void changeQuantity(int index, int qty) {
-    if (qty <= 0) return;
-
     setState(() {
       cartItems[index]['quantity'] = qty;
       calculateTotal();
@@ -89,14 +89,65 @@ class _PosScreenState extends State<PosScreen> {
     });
   }
 
-  // ================= RECEIPT =================
-  void printReceipt() {
-    print("------ RECEIPT ------");
-    for (var item in cartItems) {
-      print(
-          "${item['name']} x${item['quantity']} = ${item['price'] * item['quantity']}");
+  // ================= CREATE SALE =================
+  Future<void> createSale(String paymentMethod) async {
+    if (cartItems.isEmpty) {
+      showMessage("Cart is empty");
+      return;
     }
-    print("Total: $total");
+
+    final url = Uri.parse("$baseUrl/create-sale");
+
+    // 🔥 IMPORTANT: CLONE DATA
+    final List<Map<String, dynamic>> itemsCopy =
+        cartItems.map((item) => Map<String, dynamic>.from(item)).toList();
+
+    final double totalCopy = total;
+
+    Map<String, dynamic> saleData = {
+      "items": itemsCopy.map((item) {
+        return {
+          "product_id": item["product_id"],
+          "quantity": item["quantity"],
+          "price": item["price"],
+        };
+      }).toList(),
+      "total_amount": totalCopy,
+      "payment_method": paymentMethod,
+    };
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(saleData),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final resData = jsonDecode(response.body);
+        String saleId = resData["sale_id"];
+
+        // ✅ NAVIGATE WITH SAFE DATA
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ReceiptScreen(
+              saleId: saleId,
+              items: itemsCopy,
+              total: totalCopy,
+              paymentMethod: paymentMethod,
+            ),
+          ),
+        );
+
+        // ✅ CLEAR AFTER NAVIGATION
+        clearCart();
+      } else {
+        showMessage("Failed to create sale");
+      }
+    } catch (e) {
+      showMessage("Error: $e");
+    }
   }
 
   // ================= SNACKBAR =================
@@ -110,19 +161,22 @@ class _PosScreenState extends State<PosScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('POS / New Sale')),
+      appBar: AppBar(
+        title: const Text('POS / New Sale'),
+        backgroundColor: Colors.teal,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
-            // Barcode input
+            // BARCODE INPUT
             Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _barcodeController,
                     decoration: const InputDecoration(
-                      labelText: 'Scan or Enter Barcode',
+                      labelText: 'Scan Barcode',
                       border: OutlineInputBorder(),
                     ),
                     onSubmitted: addItem,
@@ -138,79 +192,68 @@ class _PosScreenState extends State<PosScreen> {
 
             const SizedBox(height: 20),
 
-            // Cart list
+            // CART
             Expanded(
-              child: cartItems.isEmpty
-                  ? const Center(child: Text("No items in cart"))
-                  : ListView.builder(
-                      itemCount: cartItems.length,
-                      itemBuilder: (context, index) {
-                        var item = cartItems[index];
-                        return Card(
-                          child: ListTile(
-                            title: Text(item['name']),
-                            subtitle: Text('Price: ${item['price']}'),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.delete,
-                                      color: Colors.red),
-                                  onPressed: () => removeItem(index),
-                                ),
-                                SizedBox(
-                                  width: 40,
-                                  child: TextFormField(
-                                    initialValue: item['quantity'].toString(),
-                                    keyboardType: TextInputType.number,
-                                    onChanged: (val) {
-                                      int qty = int.tryParse(val) ?? 1;
-                                      changeQuantity(index, qty);
-                                    },
-                                  ),
-                                ),
-                              ],
+              child: ListView.builder(
+                itemCount: cartItems.length,
+                itemBuilder: (context, index) {
+                  var item = cartItems[index];
+
+                  return Card(
+                    child: ListTile(
+                      title: Text(item['name']),
+                      subtitle: Text('Rs ${item['price']}'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => removeItem(index),
+                          ),
+                          SizedBox(
+                            width: 40,
+                            child: TextFormField(
+                              initialValue: item['quantity'].toString(),
+                              keyboardType: TextInputType.number,
+                              onChanged: (val) {
+                                int qty = int.tryParse(val) ?? 1;
+                                changeQuantity(index, qty);
+                              },
                             ),
                           ),
-                        );
-                      },
+                        ],
+                      ),
                     ),
+                  );
+                },
+              ),
             ),
 
-            // Total
+            // TOTAL
             Text(
               'Total: Rs ${total.toStringAsFixed(2)}',
               style: const TextStyle(
-                  fontSize: 24,
+                  fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: Colors.teal),
             ),
 
             const SizedBox(height: 10),
 
-            // Buttons
+            // BUTTONS
             Wrap(
               spacing: 10,
               children: [
                 ElevatedButton(
                     onPressed: clearCart, child: const Text('Clear Cart')),
                 ElevatedButton(
-                    onPressed: printReceipt,
-                    child: const Text('Print Receipt')),
-                ElevatedButton(
-                    onPressed: () {
-                      showMessage("Cash Payment (next step)");
-                    },
+                    onPressed: () => createSale("Cash"),
                     child: const Text('Cash')),
                 ElevatedButton(
-                    onPressed: () {
-                      showMessage("Card Payment (next step)");
-                    },
+                    onPressed: () => createSale("Card"),
                     child: const Text('Card')),
                 ElevatedButton(
-                    onPressed: () {
-                      showMessage("Online Payment (next step)");
-                    },
+                    onPressed: () => createSale("Online"),
                     child: const Text('Online')),
               ],
             )

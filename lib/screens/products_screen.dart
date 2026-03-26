@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+
 import 'add_product_screen.dart';
+import 'barcode_screen.dart';
+import 'barcode_pdf_generator.dart';
 
 const String baseUrl = "https://flutter-shop-app-be.vercel.app";
 
@@ -35,7 +38,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     }
   }
 
-  // ================= FETCH PRODUCTS BY CATEGORY =================
+  // ================= FETCH PRODUCTS =================
   Future<void> fetchProducts(String categoryId) async {
     final response =
         await http.get(Uri.parse("$baseUrl/products-by-category/$categoryId"));
@@ -51,11 +54,23 @@ class _ProductsScreenState extends State<ProductsScreen> {
     }
   }
 
-  // ================= REFRESH AFTER ADD =================
+  // ================= REFRESH =================
   void refreshAfterAdd() {
     if (selectedCategoryId != null) {
       fetchProducts(selectedCategoryId!);
     }
+  }
+
+  // ================= PRINT ALL BARCODES =================
+  void printAllBarcodes() async {
+    if (products.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No products to print")),
+      );
+      return;
+    }
+
+    await generateBarcodePdf(products);
   }
 
   // ================= UI =================
@@ -65,9 +80,17 @@ class _ProductsScreenState extends State<ProductsScreen> {
       appBar: AppBar(
         title: const Text("Products"),
         backgroundColor: Colors.teal,
+
+        // 🔥 PRINT ICON (NOW YOU WILL SEE IT)
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            onPressed: printAllBarcodes,
+          ),
+        ],
       ),
 
-      // ✅ ADD BUTTON BACK
+      // ADD PRODUCT BUTTON
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.teal,
         child: const Icon(Icons.add),
@@ -78,8 +101,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
               builder: (context) => const AddProductScreen(),
             ),
           );
-
-          // Refresh after coming back
           refreshAfterAdd();
         },
       ),
@@ -88,7 +109,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
-            // ================= CATEGORY DROPDOWN =================
+            // CATEGORY DROPDOWN
             DropdownButtonFormField<String>(
               hint: const Text("Select Category"),
               value: selectedCategoryId,
@@ -111,7 +132,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
             const SizedBox(height: 15),
 
-            // ================= PRODUCTS LIST =================
+            // PRODUCTS LIST
             Expanded(
               child: products.isEmpty
                   ? const Center(child: Text("No Products Found"))
@@ -125,6 +146,36 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             title: Text(product["product_name"] ?? ""),
                             subtitle: Text(
                               "Price: ${product["sale_price"]} | Stock: ${product["stock_quantity"]}",
+                            ),
+
+                            // 🔥 ACTION BUTTONS
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // 👁 VIEW BARCODE
+                                IconButton(
+                                  icon: const Icon(Icons.qr_code),
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => BarcodeScreen(
+                                          productName: product["product_name"],
+                                          barcode: product["barcode"],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+
+                                // 🖨 PRINT SINGLE BARCODE
+                                IconButton(
+                                  icon: const Icon(Icons.print),
+                                  onPressed: () async {
+                                    await generateBarcodePdf([product]);
+                                  },
+                                ),
+                              ],
                             ),
                           ),
                         );

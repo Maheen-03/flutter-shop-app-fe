@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'barcode_screen.dart'; // ✅ IMPORT THIS
 
 /// ✅ BASE URL CONFIGURATION
-const bool useLocal = false; // true = local, false = Vercel
+const bool useLocal = false;
 const String baseUrl = useLocal
     ? "http://127.0.0.1:3000"
     : "https://flutter-shop-app-be.vercel.app";
@@ -36,6 +37,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
     fetchCategories();
   }
 
+  // ================= GENERATE BARCODE =================
+  String generateBarcode() {
+    return DateTime.now().millisecondsSinceEpoch.toString();
+  }
+
   // ================= FETCH CATEGORIES =================
   Future<void> fetchCategories() async {
     try {
@@ -58,16 +64,22 @@ class _AddProductScreenState extends State<AddProductScreen> {
   // ================= SAVE PRODUCT =================
   Future<void> saveProduct() async {
     if (!_formKey.currentState!.validate()) return;
+
     if (selectedCategoryId == null) {
       showMessage("Please select a category");
       return;
     }
 
+    // ✅ FIX: SINGLE BARCODE VARIABLE
+    String finalBarcode = barcodeController.text.trim().isEmpty
+        ? generateBarcode()
+        : barcodeController.text.trim();
+
     final url = Uri.parse("$baseUrl/add-product");
 
     Map<String, dynamic> productData = {
       "product_name": productNameController.text.trim(),
-      "barcode": barcodeController.text.trim(),
+      "barcode": finalBarcode,
       "category_id": selectedCategoryId,
       "cost_price": double.tryParse(costPriceController.text) ?? 0,
       "sale_price": double.tryParse(salePriceController.text) ?? 0,
@@ -83,8 +95,21 @@ class _AddProductScreenState extends State<AddProductScreen> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        showMessage("Product Saved Successfully");
-        Navigator.pop(context);
+        showMessage("Product Saved Successfully ✅");
+
+        // ✅ OPEN BARCODE SCREEN
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => BarcodeScreen(
+              productName: productNameController.text.trim(),
+              barcode: finalBarcode,
+            ),
+          ),
+        );
+
+        // ✅ CLEAR FORM AFTER
+        clearForm();
       } else {
         showMessage("Failed to save product (${response.statusCode})");
       }
@@ -93,9 +118,24 @@ class _AddProductScreenState extends State<AddProductScreen> {
     }
   }
 
+  // ================= CLEAR FORM =================
+  void clearForm() {
+    productNameController.clear();
+    barcodeController.clear();
+    costPriceController.clear();
+    salePriceController.clear();
+    stockQuantityController.clear();
+    supplierIdController.clear();
+    setState(() {
+      selectedCategoryId = null;
+    });
+  }
+
   // ================= HELPER =================
   void showMessage(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg)),
+    );
   }
 
   // ================= UI =================
@@ -112,6 +152,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
           key: _formKey,
           child: ListView(
             children: [
+              // Product Name
               TextFormField(
                 controller: productNameController,
                 decoration: const InputDecoration(
@@ -121,36 +162,43 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 validator: (value) =>
                     value!.isEmpty ? "Enter product name" : null,
               ),
+
               const SizedBox(height: 15),
+
+              // Barcode (Optional)
               TextFormField(
                 controller: barcodeController,
                 decoration: const InputDecoration(
-                  labelText: "Barcode",
+                  labelText: "Barcode (Optional - Auto Generate if empty)",
                   border: OutlineInputBorder(),
                 ),
               ),
+
               const SizedBox(height: 15),
+
+              // Category Dropdown
               DropdownButtonFormField<String>(
                 value: selectedCategoryId,
                 hint: const Text("Select Category"),
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                 ),
-                items: categories.isEmpty
-                    ? []
-                    : categories.map<DropdownMenuItem<String>>((cat) {
-                        return DropdownMenuItem<String>(
-                          value: cat["id"].toString(),
-                          child: Text(cat["name"] ?? "No Name"),
-                        );
-                      }).toList(),
+                items: categories.map<DropdownMenuItem<String>>((cat) {
+                  return DropdownMenuItem<String>(
+                    value: cat["id"].toString(),
+                    child: Text(cat["name"] ?? "No Name"),
+                  );
+                }).toList(),
                 onChanged: (value) {
                   setState(() {
                     selectedCategoryId = value;
                   });
                 },
               ),
+
               const SizedBox(height: 15),
+
+              // Cost Price
               TextFormField(
                 controller: costPriceController,
                 keyboardType: TextInputType.number,
@@ -159,7 +207,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   border: OutlineInputBorder(),
                 ),
               ),
+
               const SizedBox(height: 15),
+
+              // Sale Price
               TextFormField(
                 controller: salePriceController,
                 keyboardType: TextInputType.number,
@@ -168,7 +219,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   border: OutlineInputBorder(),
                 ),
               ),
+
               const SizedBox(height: 15),
+
+              // Stock Quantity
               TextFormField(
                 controller: stockQuantityController,
                 keyboardType: TextInputType.number,
@@ -177,7 +231,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   border: OutlineInputBorder(),
                 ),
               ),
+
               const SizedBox(height: 15),
+
+              // Supplier ID
               TextFormField(
                 controller: supplierIdController,
                 decoration: const InputDecoration(
@@ -185,7 +242,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   border: OutlineInputBorder(),
                 ),
               ),
+
               const SizedBox(height: 25),
+
+              // Save Button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
