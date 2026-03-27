@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:barcode_widget/barcode_widget.dart';
+import 'barcode_pdf_generator.dart';
 
 class BarcodeScreen extends StatelessWidget {
   final String productName;
@@ -10,6 +11,16 @@ class BarcodeScreen extends StatelessWidget {
     required this.productName,
     required this.barcode,
   });
+
+  // ================= PRINT FUNCTION =================
+  void printBarcode() async {
+    await generateBarcodePdf([
+      {
+        "product_name": productName,
+        "barcode": barcode,
+      }
+    ]);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +38,7 @@ class BarcodeScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // PRODUCT NAME
                 Text(
                   productName,
                   style: const TextStyle(
@@ -34,11 +46,12 @@ class BarcodeScreen extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+
                 const SizedBox(height: 20),
 
-                // 🔥 BARCODE DISPLAY
+                //  BARCODE DISPLAY
                 BarcodeWidget(
-                  barcode: Barcode.code128(), // BEST for POS
+                  barcode: Barcode.code128(),
                   data: barcode,
                   width: 250,
                   height: 80,
@@ -46,6 +59,7 @@ class BarcodeScreen extends StatelessWidget {
 
                 const SizedBox(height: 10),
 
+                // BARCODE TEXT
                 Text(
                   barcode,
                   style: const TextStyle(fontSize: 16),
@@ -53,15 +67,17 @@ class BarcodeScreen extends StatelessWidget {
 
                 const SizedBox(height: 20),
 
+                //  PRINT BUTTON
                 ElevatedButton.icon(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Printing coming soon")),
-                    );
-                  },
+                  onPressed: printBarcode,
                   icon: const Icon(Icons.print),
                   label: const Text("Print Barcode"),
-                )
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
+                  ),
+                ),
               ],
             ),
           ),
